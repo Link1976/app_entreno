@@ -289,49 +289,11 @@ textarea::placeholder { color:var(--ink3); }
 .ad-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
 .ad-field { }
 </style>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script>
-// ===================== FIREBASE CONFIG =====================
-const firebaseConfig = {
-  apiKey:            "AIzaSyDMZBLZWYWijifeskPyDLU49fSGpBhrXPQ",
-  authDomain:        "entreno-alberto.firebaseapp.com",
-  projectId:         "entreno-alberto",
-  storageBucket:     "entreno-alberto.firebasestorage.app",
-  messagingSenderId: "779585168845",
-  appId:             "1:779585168845:web:66ac2923d738c3a8309084"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db   = firebase.firestore();
-</script>
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;padding:2rem;background:var(--bg)">
-  <div style="width:100%;max-width:360px">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:2rem;color:var(--ink);margin-bottom:0.3rem">Diario de<br><span style="color:var(--accent)">Entreno</span></div>
-    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:2rem">Alberto · Plan Personalizado</div>
-    <div style="display:flex;flex-direction:column;gap:0.8rem">
-      <div>
-        <label style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:0.4rem">Email</label>
-        <input id="loginEmail" type="email" placeholder="tu@email.com" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.8rem;color:var(--ink);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
-      </div>
-      <div>
-        <label style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:0.4rem">Contraseña</label>
-        <input id="loginPass" type="password" placeholder="••••••••" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.8rem;color:var(--ink);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div id="loginError" style="font-size:0.78rem;color:var(--red);min-height:1rem"></div>
-      <button onclick="doLogin()" style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:0.8rem;font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;letter-spacing:0.03em">Entrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- APP SCREEN -->
-<div id="appScreen" style="display:none">
+<!-- APP -->
+<div id="appScreen">
 
 <header>
   <div class="header-inner">
@@ -344,9 +306,6 @@ const db   = firebase.firestore();
         <div class="streak-num" id="streakNum">0</div>
         <div class="streak-label">Sesiones esta semana</div>
       </div>
-      <button onclick="doLogout()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:0.25rem 0.6rem;font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.35);cursor:pointer">
-        <span id="userEmail" style="margin-right:0.4rem"></span>Salir
-      </button>
     </div>
   </div>
 </header>
@@ -476,59 +435,14 @@ const db   = firebase.firestore();
 </div><!-- end appScreen -->
 
 <script>
-// ===================== FIREBASE STORAGE =====================
-let currentUser = null;
-
+// ===================== STORAGE =====================
 async function saveData(key, value) {
-  if (currentUser) {
-    try {
-      await db.collection('users').doc(currentUser.uid).collection('data').doc(key).set({
-        value: JSON.stringify(value),
-        updated_at: new Date().toISOString()
-      });
-      return;
-    } catch(e) { console.warn('Firestore save failed, fallback localStorage', e); }
-  }
   localStorage.setItem(`entreno_${key}`, JSON.stringify(value));
 }
 
 async function loadData(key) {
-  if (currentUser) {
-    try {
-      const snap = await db.collection('users').doc(currentUser.uid).collection('data').doc(key).get();
-      return snap.exists ? JSON.parse(snap.data().value) : null;
-    } catch(e) { /* fallback */ }
-  }
   const v = localStorage.getItem(`entreno_${key}`);
   return v ? JSON.parse(v) : null;
-}
-
-// ===================== AUTH =====================
-function showLogin() {
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('appScreen').style.display = 'none';
-}
-
-function showApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appScreen').style.display = 'block';
-  document.getElementById('userEmail').textContent = currentUser?.email || '';
-}
-
-async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass  = document.getElementById('loginPass').value;
-  const errEl = document.getElementById('loginError');
-  errEl.textContent = '';
-  try {
-    await auth.signInWithEmailAndPassword(email, pass);
-  } catch(e) {
-    errEl.textContent = 'Email o contraseña incorrectos';
-  }
-}
-
-function doLogout() {
-  auth.signOut();
 }
 
 // ===================== DATA =====================
@@ -692,23 +606,14 @@ let aquilesScales = {};
 
 // ===================== INIT =====================
 async function init() {
-  auth.onAuthStateChanged(async (user) => {
-    if (user) {
-      currentUser = user;
-      showApp();
-      const today = new Date();
-      document.getElementById('aquilesHoy').textContent = today.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
-      document.getElementById('weekSub').textContent = getWeekDates(currentWeek);
-      renderWeekGrid();
-      renderHistorial();
-      renderResumen();
-      renderAquilesEvolucion();
-      updateStreak();
-    } else {
-      currentUser = null;
-      showLogin();
-    }
-  });
+  const today = new Date();
+  document.getElementById('aquilesHoy').textContent = today.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('weekSub').textContent = getWeekDates(currentWeek);
+  renderWeekGrid();
+  renderHistorial();
+  renderResumen();
+  renderAquilesEvolucion();
+  updateStreak();
 }
 
 // ===================== WEEK =====================
