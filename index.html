@@ -289,13 +289,11 @@ textarea::placeholder { color:var(--ink3); }
 .ad-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
 .ad-field { }
 </style>
-<script type="module">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
 // ===================== FIREBASE CONFIG =====================
-// Pega aquí tu firebaseConfig del proyecto (la obtienes en Firebase Console → Project Settings)
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
 const firebaseConfig = {
   apiKey:            "AIzaSyDMZBLZWYWijifeskPyDLU49fSGpBhrXPQ",
   authDomain:        "entreno-alberto.firebaseapp.com",
@@ -305,14 +303,9 @@ const firebaseConfig = {
   appId:             "1:779585168845:web:66ac2923d738c3a8309084"
 };
 
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
-
-// ── Exponer al scope global para que el resto del script los use ──
-window._fbAuth = auth;
-window._fbDb   = db;
-window._fbFns  = { signInWithEmailAndPassword, onAuthStateChanged, signOut, doc, setDoc, getDoc };
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
 </script>
 </head>
 <body>
@@ -487,10 +480,12 @@ window._fbFns  = { signInWithEmailAndPassword, onAuthStateChanged, signOut, doc,
 let currentUser = null;
 
 async function saveData(key, value) {
-  if (currentUser && window._fbDb) {
+  if (currentUser) {
     try {
-      const { doc, setDoc } = window._fbFns;
-      await setDoc(doc(window._fbDb, 'users', currentUser.uid, 'data', key), { value: JSON.stringify(value), updated_at: new Date().toISOString() });
+      await db.collection('users').doc(currentUser.uid).collection('data').doc(key).set({
+        value: JSON.stringify(value),
+        updated_at: new Date().toISOString()
+      });
       return;
     } catch(e) { console.warn('Firestore save failed, fallback localStorage', e); }
   }
@@ -498,11 +493,10 @@ async function saveData(key, value) {
 }
 
 async function loadData(key) {
-  if (currentUser && window._fbDb) {
+  if (currentUser) {
     try {
-      const { doc, getDoc } = window._fbFns;
-      const snap = await getDoc(doc(window._fbDb, 'users', currentUser.uid, 'data', key));
-      return snap.exists() ? JSON.parse(snap.data().value) : null;
+      const snap = await db.collection('users').doc(currentUser.uid).collection('data').doc(key).get();
+      return snap.exists ? JSON.parse(snap.data().value) : null;
     } catch(e) { /* fallback */ }
   }
   const v = localStorage.getItem(`entreno_${key}`);
@@ -527,16 +521,14 @@ async function doLogin() {
   const errEl = document.getElementById('loginError');
   errEl.textContent = '';
   try {
-    const { signInWithEmailAndPassword } = window._fbFns;
-    await signInWithEmailAndPassword(window._fbAuth, email, pass);
+    await auth.signInWithEmailAndPassword(email, pass);
   } catch(e) {
     errEl.textContent = 'Email o contraseña incorrectos';
   }
 }
 
 function doLogout() {
-  const { signOut } = window._fbFns;
-  signOut(window._fbAuth);
+  auth.signOut();
 }
 
 // ===================== DATA =====================
@@ -700,8 +692,7 @@ let aquilesScales = {};
 
 // ===================== INIT =====================
 async function init() {
-  const { onAuthStateChanged } = window._fbFns;
-  onAuthStateChanged(window._fbAuth, async (user) => {
+  auth.onAuthStateChanged(async (user) => {
     if (user) {
       currentUser = user;
       showApp();
